@@ -285,7 +285,7 @@
       <div class="container">
         <div class="card">
           <form id="login-form">
-            <h1>เข้าสู่ระบบ 1</h1>
+            <h1>เข้าสู่ระบบ</h1>
             <div class="form-group">
               <label for="pin-input">กรุณากรอกรหัส PIN</label>
               <input
@@ -455,6 +455,7 @@
       const SUPABASE_URL = "https://xxbaegxsavaemekstxso.supabase.co";
       const SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4YmFlZ3hzYXZhZW1la3N0eHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwNDgwNjEsImV4cCI6MjA3NzYyNDA2MX0.TY7OGsMvmxbthfmwoJOuIzAdOYS87YZ-oHbCVgpryL4";
+      // แก้ไขจุดนี้: เปลี่ยนจาก client.createClient เป็น supabase.createClient และเปลี่ยนชื่อตัวแปรเป็น supabaseClient
       const supabaseClient = supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
@@ -611,31 +612,6 @@
         return `${diffMins} นาที`;
       }
 
-      function calculateDuration(startTime, endTime) {
-        if (!startTime || !endTime) {
-          return "-";
-        }
-        const start = new Date(startTime);
-        const end = new Date(endTime);
-
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-          return "-";
-        }
-
-        const diffMs = end - start;
-        if (diffMs < 0) {
-          return "-";
-        }
-
-        const diffHrs = Math.floor(diffMs / 3600000);
-        const diffMins = Math.floor((diffMs % 3600000) / 60000);
-
-        if (diffHrs > 0) {
-          return `${diffHrs} ชั่วโมง ${diffMins} นาที`;
-        }
-        return `${diffMins} นาที`;
-      }
-
       function showError(message) {
         alert(`เกิดข้อผิดพลาด: ${message}`);
         console.error("UI Error Displayed:", message);
@@ -672,11 +648,40 @@
         showPage(0);
       }
 
+      // <<<< เพิ่มฟังก์ชันนี้เข้ามา >>>>>
+      function calculateDuration(startTime, endTime) {
+        // ตรวจสอบว่ามีข้อมูลวันเวลาทั้งสองจุดหรือไม่
+        if (!startTime || !endTime) {
+          return "-";
+        }
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+
+        // ตรวจสอบว่าวันเวลาถูกต้อง
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          return "-";
+        }
+
+        const diffMs = end - start;
+        if (diffMs < 0) {
+          return "-"; // กรณีเวลาสิ้นสุดก่อนเริ่มต้น
+        }
+
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
+
+        if (diffHrs > 0) {
+          return `${diffHrs} ชั่วโมง ${diffMins} นาที`;
+        }
+        return `${diffMins} นาที`;
+      }
+
       // ========================================
       // API CALLS TO SUPABASE
       // ========================================
       async function fetchDryerStatus(dryerId) {
         console.log(`API: Fetching status for dryer ${dryerId}`);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         const { data, error } = await supabaseClient
           .from("drying_batches")
           .select("*")
@@ -684,7 +689,7 @@
           .neq("status", "completed")
           .order("created_at", { ascending: false })
           .limit(1)
-          .maybeSingle();
+          .maybeSingle(); // Use maybeSingle to handle no rows gracefully
 
         if (error) {
           console.error("API Error fetching dryer status:", error);
@@ -707,6 +712,7 @@
 
       async function updateBatchStatus(batchId, updates) {
         console.log(`API: Updating batch ${batchId} with:`, updates);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         const { data, error } = await supabaseClient
           .from("drying_batches")
           .update(updates)
@@ -731,6 +737,7 @@
           status: "filling",
           start_filling_time: new Date().toISOString(),
         };
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         const { data, error } = await supabaseClient
           .from("drying_batches")
           .insert(newBatch)
@@ -747,6 +754,7 @@
 
       async function fetchRecordsForBatch(batchId) {
         console.log(`API: Fetching records for batch ${batchId}`);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         const { data, error } = await supabaseClient
           .from("drying_records")
           .select("*")
@@ -763,6 +771,7 @@
 
       async function addRecordForBatch(batchId, record) {
         console.log(`API: Adding record for batch ${batchId}:`, record);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         const { data, error } = await supabaseClient
           .from("drying_records")
           .insert({ ...record, batch_id: batchId })
@@ -779,6 +788,7 @@
 
       async function updateRecord(recordId, updates) {
         console.log(`API: Updating record ${recordId} with:`, updates);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         const { data, error } = await supabaseClient
           .from("drying_records")
           .update(updates)
@@ -796,6 +806,7 @@
 
       async function deleteRecord(recordId) {
         console.log(`API: Deleting record ${recordId}`);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         const { error } = await supabaseClient
           .from("drying_records")
           .delete()
@@ -813,6 +824,7 @@
           `API: Fetching completed batches. Page: ${page}, Filters:`,
           filters
         );
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
         let query = supabaseClient
           .from("drying_batches")
           .select("*", { count: "exact" })
@@ -909,14 +921,17 @@
                 renderGraphs(records);
             }
 
-            // <<<< ส่วนที่เพิ่มเข้ามาเพื่อควบคุมการแสดงปุ่ม >>>>>
+            // <<<< ส่วนที่แก้ไขเพื่อควบคุมการแสดงปุ่ม >>>>>
             const addRecordButton = document.getElementById('btn-add-record');
-            if (appState.currentUser.role === 'manager') {
-                // ถ้าเป็น Manager ให้ซ่อนปุ่มเพิ่มข้อมูล
-                addRecordButton.style.display = 'none';
-            } else {
-                // ถ้าเป็น Staff ให้แสดงปุ่มเพิ่มข้อมูล
+            
+            // กำหนดสถานะเครื่อง ถ้าไม่มี batch ให้ถือว่าเป็น 'idle'
+            const currentStatus = appState.currentBatch ? appState.currentBatch.status : 'idle';
+
+            // แสดงปุ่มเฉพาะเมื่อผู้ใช้เป็น staff และสถานะเครื่องเป็น 'drying' หรือ 'cooling'
+            if (appState.currentUser.role === 'staff' && (currentStatus === 'drying' || currentStatus === 'cooling')) {
                 addRecordButton.style.display = 'block';
+            } else {
+                addRecordButton.style.display = 'none';
             }
         });
     }
@@ -934,10 +949,13 @@
           return;
         }
 
+        // <<<< ส่วนที่แก้ไข >>>>
+        // กำหนดสถานะ ถ้าไม่มี batch ให้ถือว่าเป็น 'idle'
         const status = batch ? batch.status : "idle";
         let buttonHtml = "";
 
         if (status === "idle") {
+          // สถานะว่าง ให้แสดงปุ่มเริ่มเติมข้าว
           buttonHtml = `<button class="btn btn-info" onclick="handleStartFilling()">เริ่มเติมข้าว</button>`;
         } else if (status === "filling") {
           buttonHtml = `<button class="btn btn-warning" onclick="handleStartDrying()">เริ่มอบข้าว</button>`;
@@ -1082,6 +1100,7 @@
         const tbody = document.getElementById("history-table-body");
         tbody.innerHTML = "";
         batches.forEach((batch) => {
+          // <<<< ส่วนที่เพิ่มเข้ามาเพื่อคำนวณเวลา >>>>>
           const fillingDuration = calculateDuration(
             batch.start_filling_time,
             batch.start_drying_time
@@ -1270,10 +1289,13 @@
         const riceType = document.getElementById("popup-rice-type").value;
         const pin = document.getElementById("popup-confirm-pin").value;
 
+        // <<<< ส่วนที่เพิ่มเข้ามาเพื่อตรวจสอบ >>>>>
+        // ตรวจสอบว่ากรอกเลขที่ใบอบหรือไม่
         if (!batchNumber || batchNumber.trim() === "") {
           showError("กรุณาระบุเลขที่ใบอบ");
           return;
         }
+        // ตรวจสอบว่าเลือกชนิดข้าวหรือไม่
         if (!riceType) {
           showError("กรุณาเลือกชนิดข้าว");
           return;
@@ -1361,9 +1383,11 @@
         ).value;
         const pin = document.getElementById("popup-confirm-pin").value;
 
+        // <<<< ส่วนที่ตรวจสอบ (มีอยู่แล้ว แต่ปรับข้อความให้ชัดเจนขึ้น) >>>>>
+        // ตรวจสอบว่าผู้ใช้เลือกสถานที่เก็บหรือไม่ (ไม่ใช่ค่าว่าง)
         if (!storageLocation) {
-          showError("กรุณาเลือกสถานที่เก็บจากรายการ");
-          return;
+          showError("กรุณาเลือกสถานที่เก็บจากรายการ"); // ปรับข้อความเตือน
+          return; // หยุดการทำงานถ้ายังไม่เลือก
         }
 
         if (pin !== ACTION_CONFIRM_PIN) {
@@ -1438,15 +1462,19 @@
       }
 
       async function confirmAddRecord() {
+        // ดึงค่าจาก input fields ในรูปแบบ string
         const humidityStr = document.getElementById("popup-humidity").value;
         const tempTopStr = document.getElementById("popup-temp-top").value;
         const tempBottomStr =
           document.getElementById("popup-temp-bottom").value;
 
+        // แปลงค่า string เป็นตัวเลข
         const humidity = parseFloat(humidityStr);
         const tempTop = parseFloat(tempTopStr);
         const tempBottom = parseFloat(tempBottomStr);
 
+        // <<<< ส่วนที่เพิ่มเข้ามาเพื่อตรวจสอบ >>>>>
+        // ตรวจสอบความชื้น
         if (humidityStr.trim() === "" || isNaN(humidity)) {
           showError("กรุณาระบุความชื้นเป็นตัวเลข");
           return;
@@ -1456,6 +1484,7 @@
           return;
         }
 
+        // ตรวจสอบอุณหภูมิพัดลมบน
         if (tempTopStr.trim() === "" || isNaN(tempTop)) {
           showError("กรุณาระบุอุณหภูมิพัดลมบนเป็นตัวเลข");
           return;
@@ -1465,6 +1494,7 @@
           return;
         }
 
+        // ตรวจสอบอุณหภูมิพัดลมล่าง
         if (tempBottomStr.trim() === "" || isNaN(tempBottom)) {
           showError("กรุณาระบุอุณหภูมิพัดลมล่างเป็นตัวเลข");
           return;
@@ -1474,6 +1504,7 @@
           return;
         }
 
+        // ถ้าผ่านการตรวจสอบทั้งหมด จึงจะทำงานในส่วนของการบันทึกข้อมูล
         try {
           await addRecordForBatch(appState.currentBatch.id, {
             record_time: new Date().toISOString(),
