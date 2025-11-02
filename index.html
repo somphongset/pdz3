@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ระบบบันทึกการอบข้าวเปลือก</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>"
+    />
+    <script src="https://unpkg.com/@supabase/supabase-js@2.78.0/dist/umd/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      :root {
+        --primary-color: #007bff;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+        --warning-color: #ffc107;
+        --info-color: #17a2b8;
+        --light-color: #f8f9fa;
+        --dark-color: #343a40;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        background-color: var(--light-color);
+        color: var(--dark-color);
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .page {
+        display: none;
+      }
+
+      .page.active {
+        display: block;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--dark-color);
+      }
+
+      .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .btn {
+        display: inline-block;
+        font-weight: 400;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle;
+        user-select: none;
+        border: 1px solid transparent;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border-radius: 0.25rem;
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out,
+          border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      .btn-primary {
+        color: #fff;
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+      .btn-secondary {
+        color: #fff;
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+      }
+      .btn-success {
+        color: #fff;
+        background-color: var(--success-color);
+        border-color: var(--success-color);
+      }
+      .btn-danger {
+        color: #fff;
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+      }
+      .btn-warning {
+        color: #212529;
+        background-color: var(--warning-color);
+        border-color: var(--warning-color);
+      }
+      .btn-info {
+        color: #fff;
+        background-color: var(--info-color);
+        border-color: var(--info-color);
+      }
+      .btn-light {
+        color: #212529;
+        background-color: var(--light-color);
+        border-color: var(--light-color);
+      }
+      .btn-dark {
+        color: #fff;
+        background-color: var(--dark-color);
+        border-color: var(--dark-color);
+      }
+
+      .btn:hover {
+        opacity: 0.85;
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .form-group {
+        margin-bottom: 1rem;
+      }
+
+      .form-control {
+        display: block;
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #495057;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+      }
+
+      /* Page 0: Login */
+      #login-form {
+        max-width: 400px;
+        margin: 50px auto;
+        text-align: center;
+      }
+
+      /* Page 1: Dashboard */
+      .dryer-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+      }
+      .dryer-button {
+        padding: 30px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      .dryer-button:hover {
+        transform: scale(1.05);
+      }
+      .status-idle {
+        background-color: var(--secondary-color);
+      }
+      .status-filling {
+        background-color: var(--info-color);
+      }
+      .status-drying {
+        background-color: var(--warning-color);
+        color: var(--dark-color);
+      }
+      .status-cooling {
+        background-color: var(--primary-color);
+      }
+      .status-completed {
+        background-color: var(--success-color);
+      }
+
+      /* Page 2: Control Panel */
+      .records-list {
+        list-style: none;
+        padding: 0;
+      }
+      .record-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+      }
+      .record-item button {
+        margin-left: 10px;
+      }
+
+      /* Page 3: History */
+      .filters {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .filters .form-group {
+        margin-bottom: 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: var(--light-color);
+      }
+      tr:hover {
+        background-color: #f5f5f5;
+      }
+      .pagination {
+        display: flex;
+        justify-content: center;
+        list-style: none;
+        padding: 0;
+      }
+      .pagination li {
+        margin: 0 5px;
+      }
+
+      /* Popup */
+      #popup-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      #popup-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .popup-add {
+        background-color: #d4edda;
+      }
+      .popup-edit {
+        background-color: #fff3cd;
+      }
+      .popup-delete {
+        background-color: #f8d7da;
+      }
+      .popup-actions {
+        margin-top: 20px;
+        text-align: right;
+      }
+      .popup-actions button {
+        margin-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Page 0: Login -->
+    <div id="page-0" class="page active">
+      <div class="container">
+        <div class="card">
+          <form id="login-form">
+            <h1>เข้าสู่ระบบ</h1>
+            <div class="form-group">
+              <label for="pin-input">กรุณากรอกรหัส PIN</label>
+              <input
+                type="password"
+                id="pin-input"
+                class="form-control"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-primary">เข้าสู่ระบบ</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 1: Dashboard -->
+    <div id="page-1" class="page">
+      <div class="container">
+        <div class="card">
+          <h1>แดชบอร์ด</h1>
+          <button
+            id="btn-logout"
+            class="btn btn-secondary"
+            style="float: right"
+          >
+            ออกจากระบบ
+          </button>
+          <button id="btn-view-history" class="btn btn-info">
+            ดูรายการที่อบเสร็จแล้ว
+          </button>
+          <button id="btn-refresh-dashboard" class="btn btn-dark">
+            รีเฟรช
+          </button>
+          <div style="clear: both; margin-top: 20px"></div>
+          <div id="dryer-status-container" class="dryer-grid">
+            <!-- Dryer buttons will be generated here by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 2: Dryer Control Panel -->
+    <div id="page-2" class="page">
+      <div class="container">
+        <div class="card">
+          <button id="btn-back-to-dashboard" class="btn btn-secondary">
+            กลับไปหน้าแดชบอร์ด
+          </button>
+          <h2>ควบคุมเครื่องอบข้าวเปลือก</h2>
+          <p>
+            <strong>เครื่องที่:</strong> <span id="control-dryer-id">-</span>
+          </p>
+          <p>
+            <strong>เลขที่ใบอบ:</strong>
+            <span id="control-batch-number">-</span>
+          </p>
+          <hr />
+          <div id="action-buttons-container">
+            <!-- Action buttons will be generated here by JS -->
+          </div>
+          <hr />
+          <h3>บันทึกค่าการอบ</h3>
+          <ul id="records-list" class="records-list">
+            <!-- Records will be listed here by JS -->
+          </ul>
+          <button id="btn-add-record" class="btn btn-success">
+            เพิ่มข้อมูล
+          </button>
+          <hr />
+          <h3>กราฟ</h3>
+          <div style="position: relative; height: 400px; width: 100%">
+            <canvas id="moisture-chart"></canvas>
+          </div>
+          <div
+            style="
+              position: relative;
+              height: 400px;
+              width: 100%;
+              margin-top: 20px;
+            "
+          >
+            <canvas id="temperature-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 3: History -->
+    <div id="page-3" class="page">
+      <div class="container">
+        <div class="card">
+          <button
+            id="btn-back-to-dashboard-from-history"
+            class="btn btn-secondary"
+          >
+            กลับไปหน้าแดชบอร์ด
+          </button>
+          <h2>รายการที่อบเสร็จแล้ว</h2>
+          <div id="history-summary">
+            <!-- Summary will be shown here -->
+          </div>
+          <div class="filters">
+            <div class="form-group">
+              <label for="filter-dryer">หัวอบ</label>
+              <select id="filter-dryer" class="form-control">
+                <option value="">ทั้งหมด</option>
+                <option value="1">เครื่องที่ 1</option>
+                <option value="2">เครื่องที่ 2</option>
+                <option value="3">เครื่องที่ 3</option>
+                <option value="4">เครื่องที่ 4</option>
+                <option value="5">เครื่องที่ 5</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="filter-rice-type">ชนิดข้าว</label>
+              <input type="text" id="filter-rice-type" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="filter-storage">สถานที่เก็บ</label>
+              <input type="text" id="filter-storage" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <button id="btn-apply-filters" class="btn btn-primary">
+                ค้นหา
+              </button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>เลขที่ใบอบ</th>
+                <th>เครื่องที่</th>
+                <th>ชนิดข้าว</th>
+                <th>เวลาเริ่มอบ</th>
+                <th>เวลาอบเสร็จ</th>
+                <th>สถานที่เก็บ</th>
+                <<<< เพิ่มหัวตารางใหม่ >>>>>
+                <th>ระยะเวลาเติมข้าว</th>
+                <th>ระยะเวลาอบ</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <!-- Table rows will be generated here by JS -->
+            </tbody>
+          </table>
+          <ul id="history-pagination" class="pagination">
+            <!-- Pagination will be generated here by JS -->
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generic Popup -->
+    <div id="popup-backdrop">
+      <div id="popup-container">
+        <h3 id="popup-title"></h3>
+        <div id="popup-content"></div>
+      </div>
+    </div>
+
+    <script>
+      // ========================================
+      // CONFIGURATION & INITIALIZATION
+      // ========================================
+      console.log("SYSTEM: Starting application initialization...");
+
+      const SUPABASE_URL = "https://xxbaegxsavaemekstxso.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4YmFlZ3hzYXZhZW1la3N0eHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwNDgwNjEsImV4cCI6MjA3NzYyNDA2MX0.TY7OGsMvmxbthfmwoJOuIzAdOYS87YZ-oHbCVgpryL4";
+      // แก้ไขจุดนี้: เปลี่ยนจาก client.createClient เป็น supabase.createClient และเปลี่ยนชื่อตัวแปรเป็น supabaseClient
+      const supabaseClient = supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+      );
+
+      const MANAGER_PIN = "9511";
+      const STAFF_PIN = "1357";
+      const ACTION_CONFIRM_PIN = "1234";
+
+      const DRYER_COUNT = 5;
+      const HISTORY_PAGE_SIZE = 10;
+
+      let appState = {
+        currentUser: { role: null, pin: null },
+        currentDryerId: null,
+        currentBatch: null,
+        currentRecords: [],
+        historyPage: 1,
+        historyTotalPages: 1,
+        historyFilters: { dryer: "", riceType: "", storage: "" },
+      };
+
+      let moistureChart = null;
+      let temperatureChart = null;
+
+      // ========================================
+      // PWA SETUP
+      // ========================================
+      async function registerServiceWorker() {
+        console.log("PWA: Attempting to register service worker...");
+        if ("serviceWorker" in navigator) {
+          const swCode = `
+                const CACHE_NAME = 'paddy-dryer-pwa-v1';
+                const urlsToCache = [
+                    '/',
+                    'https://cdn.jsdelivr.net/npm/supabase-js@2',
+                    'https://cdn.jsdelivr.net/npm/chart.js'
+                ];
+
+                self.addEventListener('install', event => {
+                    console.log('SW: Install event');
+                    event.waitUntil(
+                        caches.open(CACHE_NAME)
+                            .then(cache => cache.addAll(urlsToCache))
+                    );
+                });
+
+                self.addEventListener('fetch', event => {
+                    console.log('SW: Fetch event for ', event.request.url);
+                    event.respondWith(
+                        caches.match(event.request)
+                            .then(response => {
+                                // Cache hit - return response
+                                if (response) {
+                                    console.log('SW: Found in cache');
+                                    return response;
+                                }
+                                console.log('SW: Not in cache, fetching from network');
+                                return fetch(event.request);
+                            })
+                    );
+                });
+            `;
+          const blob = new Blob([swCode], { type: "application/javascript" });
+          const swUrl = URL.createObjectURL(blob);
+          try {
+            const registration = await navigator.serviceWorker.register(swUrl);
+            console.log(
+              "PWA: Service Worker registered with scope:",
+              registration.scope
+            );
+          } catch (error) {
+            console.error("PWA: Service Worker registration failed:", error);
+          }
+        } else {
+          console.log("PWA: Service Workers are not supported.");
+        }
+      }
+
+      async function registerWebAppManifest() {
+        console.log("PWA: Attempting to register web app manifest...");
+        const manifestContent = {
+          name: "ระบบบันทึกการอบข้าวเปลือก",
+          short_name: "DryerApp",
+          start_url: "/",
+          display: "standalone",
+          background_color: "#ffffff",
+          description: "PWA for recording paddy rice drying process.",
+          icons: [
+            {
+              src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>",
+              sizes: "any",
+              type: "image/svg+xml",
+            },
+          ],
+        };
+        const blob = new Blob([JSON.stringify(manifestContent)], {
+          type: "application/json",
+        });
+        const manifestUrl = URL.createObjectURL(blob);
+        const link = document.createElement("link");
+        link.rel = "manifest";
+        link.href = manifestUrl;
+        document.head.appendChild(link);
+        console.log("PWA: Manifest link added to head.");
+      }
+
+      // ========================================
+      // UTILITY FUNCTIONS
+      // ========================================
+      function showPage(pageId) {
+        console.log(`UI: Navigating to page ${pageId}`);
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
+        document.getElementById(`page-${pageId}`).classList.add("active");
+      }
+
+      function showPopup(title, contentHtml, className = "") {
+        console.log(`UI: Showing popup: ${title}`);
+        const backdrop = document.getElementById("popup-backdrop");
+        const container = document.getElementById("popup-container");
+        document.getElementById("popup-title").innerText = title;
+        document.getElementById("popup-content").innerHTML = contentHtml;
+        container.className = className;
+        backdrop.style.display = "flex";
+      }
+
+      function closePopup() {
+        console.log("UI: Closing popup");
+        document.getElementById("popup-backdrop").style.display = "none";
+      }
+
+      function formatThaiDateTime(dateString) {
+        if (!dateString) return "-";
+        const date = new Date(dateString);
+        return date.toLocaleString("th-TH", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function calculateElapsedTime(startTime) {
+        if (!startTime) return "-";
+        const now = new Date();
+        const start = new Date(startTime);
+        const diffMs = now - start;
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
+        if (diffHrs > 0) return `${diffHrs} ชั่วโมง ${diffMins} นาที`;
+        return `${diffMins} นาที`;
+      }
+
+      function showError(message) {
+        alert(`เกิดข้อผิดพลาด: ${message}`);
+        console.error("UI Error Displayed:", message);
+      }
+
+      // ========================================
+      // AUTHENTICATION
+      // ========================================
+      async function handleLogin(event) {
+        event.preventDefault();
+        const pin = document.getElementById("pin-input").value;
+        console.log(`AUTH: Login attempt with PIN: ${pin}`);
+
+        if (pin === MANAGER_PIN) {
+          appState.currentUser = { role: "manager", pin: pin };
+          console.log("AUTH: Login successful as MANAGER");
+          showPage(1);
+          renderDashboard();
+        } else if (pin === STAFF_PIN) {
+          appState.currentUser = { role: "staff", pin: pin };
+          console.log("AUTH: Login successful as STAFF");
+          showPage(1);
+          renderDashboard();
+        } else {
+          console.log("AUTH: Login failed, invalid PIN");
+          showError("รหัส PIN ไม่ถูกต้อง");
+        }
+      }
+
+      function handleLogout() {
+        console.log(`AUTH: Logging out user ${appState.currentUser.role}`);
+        appState.currentUser = { role: null, pin: null };
+        document.getElementById("pin-input").value = "";
+        showPage(0);
+      }
+
+      // <<<< เพิ่มฟังก์ชันนี้เข้ามา >>>>>
+      function calculateDuration(startTime, endTime) {
+        // ตรวจสอบว่ามีข้อมูลวันเวลาทั้งสองจุดหรือไม่
+        if (!startTime || !endTime) {
+          return "-";
+        }
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+
+        // ตรวจสอบว่าวันเวลาถูกต้อง
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          return "-";
+        }
+
+        const diffMs = end - start;
+        if (diffMs < 0) {
+          return "-"; // กรณีเวลาสิ้นสุดก่อนเริ่มต้น
+        }
+
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
+
+        if (diffHrs > 0) {
+          return `${diffHrs} ชั่วโมง ${diffMins} นาที`;
+        }
+        return `${diffMins} นาที`;
+      }
+
+      // ========================================
+      // API CALLS TO SUPABASE
+      // ========================================
+      async function fetchDryerStatus(dryerId) {
+        console.log(`API: Fetching status for dryer ${dryerId}`);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        const { data, error } = await supabaseClient
+          .from("drying_batches")
+          .select("*")
+          .eq("dryer_id", dryerId)
+          .neq("status", "completed")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(); // Use maybeSingle to handle no rows gracefully
+
+        if (error) {
+          console.error("API Error fetching dryer status:", error);
+          return null;
+        }
+        console.log(`API: Dryer ${dryerId} status response:`, data);
+        return data;
+      }
+
+      async function fetchAllDryersStatus() {
+        console.log("API: Fetching status for all dryers");
+        const promises = [];
+        for (let i = 1; i <= DRYER_COUNT; i++) {
+          promises.push(fetchDryerStatus(i));
+        }
+        const results = await Promise.all(promises);
+        console.log("API: All dryer statuses fetched:", results);
+        return results;
+      }
+
+      async function updateBatchStatus(batchId, updates) {
+        console.log(`API: Updating batch ${batchId} with:`, updates);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        const { data, error } = await supabaseClient
+          .from("drying_batches")
+          .update(updates)
+          .eq("id", batchId)
+          .select()
+          .single();
+
+        if (error) {
+          console.error("API Error updating batch:", error);
+          throw error;
+        }
+        console.log("API: Batch update successful:", data);
+        return data;
+      }
+
+      async function createNewBatch(dryerId, batchNumber, riceType) {
+        console.log(`API: Creating new batch for dryer ${dryerId}`);
+        const newBatch = {
+          dryer_id: dryerId,
+          batch_number: batchNumber,
+          rice_type: riceType,
+          status: "filling",
+          start_filling_time: new Date().toISOString(),
+        };
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        const { data, error } = await supabaseClient
+          .from("drying_batches")
+          .insert(newBatch)
+          .select()
+          .single();
+
+        if (error) {
+          console.error("API Error creating batch:", error);
+          throw error;
+        }
+        console.log("API: New batch created:", data);
+        return data;
+      }
+
+      async function fetchRecordsForBatch(batchId) {
+        console.log(`API: Fetching records for batch ${batchId}`);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        const { data, error } = await supabaseClient
+          .from("drying_records")
+          .select("*")
+          .eq("batch_id", batchId)
+          .order("record_time", { ascending: true });
+
+        if (error) {
+          console.error("API Error fetching records:", error);
+          return [];
+        }
+        console.log(`API: Records for batch ${batchId}:`, data);
+        return data;
+      }
+
+      async function addRecordForBatch(batchId, record) {
+        console.log(`API: Adding record for batch ${batchId}:`, record);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        const { data, error } = await supabaseClient
+          .from("drying_records")
+          .insert({ ...record, batch_id: batchId })
+          .select()
+          .single();
+
+        if (error) {
+          console.error("API Error adding record:", error);
+          throw error;
+        }
+        console.log("API: Record added successfully:", data);
+        return data;
+      }
+
+      async function updateRecord(recordId, updates) {
+        console.log(`API: Updating record ${recordId} with:`, updates);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        const { data, error } = await supabaseClient
+          .from("drying_records")
+          .update(updates)
+          .eq("id", recordId)
+          .select()
+          .single();
+
+        if (error) {
+          console.error("API Error updating record:", error);
+          throw error;
+        }
+        console.log("API: Record updated successfully:", data);
+        return data;
+      }
+
+      async function deleteRecord(recordId) {
+        console.log(`API: Deleting record ${recordId}`);
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        const { error } = await supabaseClient
+          .from("drying_records")
+          .delete()
+          .eq("id", recordId);
+
+        if (error) {
+          console.error("API Error deleting record:", error);
+          throw error;
+        }
+        console.log(`API: Record ${recordId} deleted successfully.`);
+      }
+
+      async function fetchCompletedBatches(page, filters) {
+        console.log(
+          `API: Fetching completed batches. Page: ${page}, Filters:`,
+          filters
+        );
+        // แก้ไขจุดนี้: เปลี่ยนจาก supabase เป็น supabaseClient
+        let query = supabaseClient
+          .from("drying_batches")
+          .select("*", { count: "exact" })
+          .eq("status", "completed")
+          .order("completed_time", { ascending: false })
+          .range((page - 1) * HISTORY_PAGE_SIZE, page * HISTORY_PAGE_SIZE - 1);
+
+        if (filters.dryer)
+          query = query.eq("dryer_id", parseInt(filters.dryer));
+        if (filters.riceType)
+          query = query.ilike("rice_type", `%${filters.riceType}%`);
+        if (filters.storage)
+          query = query.ilike("storage_location", `%${filters.storage}%`);
+
+        const { data, error, count } = await query;
+
+        if (error) {
+          console.error("API Error fetching completed batches:", error);
+          return { batches: [], totalPages: 0 };
+        }
+
+        const totalPages = Math.ceil(count / HISTORY_PAGE_SIZE);
+        console.log(
+          `API: Completed batches fetched. Count: ${count}, TotalPages: ${totalPages}`,
+          data
+        );
+        return { batches: data, totalPages };
+      }
+
+      // ========================================
+      // UI RENDERING FUNCTIONS
+      // ========================================
+      function renderDashboard() {
+        console.log("UI: Rendering dashboard");
+        const container = document.getElementById("dryer-status-container");
+        container.innerHTML = "";
+        fetchAllDryersStatus().then((statuses) => {
+          statuses.forEach((batch, index) => {
+            const dryerId = index + 1;
+            const status = batch ? batch.status : "idle";
+            const elapsedTime =
+              batch && batch.start_filling_time
+                ? calculateElapsedTime(batch.start_filling_time)
+                : "";
+            const statusText = {
+              idle: "ว่าง",
+              filling: `เติมข้าวอยู่ (${elapsedTime})`,
+              drying: `อบข้าวอยู่ (${elapsedTime})`,
+              cooling: `อบออกอยู่ (${elapsedTime})`,
+              completed: "อบเสร็จแล้ว",
+            }[status];
+
+            const button = document.createElement("div");
+            button.className = `dryer-button status-${status}`;
+            button.innerHTML = `
+                    <div>เครื่องที่ ${dryerId}</div>
+                    <div style="font-size: 0.9em; margin-top: 5px;">${statusText}</div>
+                `;
+            button.onclick = () => openControlPanel(dryerId);
+            container.appendChild(button);
+          });
+        });
+      }
+
+      function openControlPanel(dryerId) {
+        console.log(`UI: Opening control panel for dryer ${dryerId}`);
+        appState.currentDryerId = dryerId;
+        showPage(2);
+        renderControlPanel();
+      }
+
+      function renderControlPanel() {
+        console.log(
+          `UI: Rendering control panel for dryer ${appState.currentDryerId}`
+        );
+        document.getElementById("control-dryer-id").innerText =
+          appState.currentDryerId;
+
+        fetchDryerStatus(appState.currentDryerId)
+          .then((batch) => {
+            appState.currentBatch = batch;
+            document.getElementById("control-batch-number").innerText = batch
+              ? batch.batch_number
+              : "-";
+            renderActionButtons(batch);
+
+            // <<<< ส่วนที่เพิ่มเข้ามา >>>>
+            // ตรวจสอบว่ามีข้อมูล batch หรือไม่ก่อนจะไปดึง records
+            if (batch) {
+              // ถ้ามี batch ก็ให้ดึงข้อมูล records ตามปกติ
+              return fetchRecordsForBatch(batch.id);
+            } else {
+              // ถ้าไม่มี batch (เครื่องว่าง) ให้ส่งค่าเป็น array ว่างไปแสดงผล
+              console.log("UI: Dryer is idle, no records to fetch.");
+              appState.currentRecords = [];
+              renderRecordsList([]); // แสดงรายการว่าง
+              renderGraphs([]); // แสดงกราฟว่าง
+              return Promise.resolve([]); // ส่ง Promise ที่ resolve ค่า array ว่างกลับไป
+            }
+          })
+          .then((records) => {
+            // ส่วนนี้จะทำงานต่อเฉพาะกรณีที่มี batch เท่านั้น
+            if (records) {
+              appState.currentRecords = records;
+              renderRecordsList(records);
+              renderGraphs(records);
+            }
+          });
+      }
+
+      function renderActionButtons(batch) {
+        console.log(
+          "UI: Rendering action buttons for status:",
+          batch ? batch.status : "idle"
+        );
+        const container = document.getElementById("action-buttons-container");
+        container.innerHTML = "";
+        if (appState.currentUser.role !== "staff") {
+          container.innerHTML =
+            '<p style="color: var(--secondary-color);">บัญชี Manager สามารถดูข้อมูลได้อย่างเดียว</p>';
+          return;
+        }
+
+        // <<<< ส่วนที่แก้ไข >>>>
+        // กำหนดสถานะ ถ้าไม่มี batch ให้ถือว่าเป็น 'idle'
+        const status = batch ? batch.status : "idle";
+        let buttonHtml = "";
+
+        if (status === "idle") {
+          // สถานะว่าง ให้แสดงปุ่มเริ่มเติมข้าว
+          buttonHtml = `<button class="btn btn-info" onclick="handleStartFilling()">เริ่มเติมข้าว</button>`;
+        } else if (status === "filling") {
+          buttonHtml = `<button class="btn btn-warning" onclick="handleStartDrying()">เริ่มอบข้าว</button>`;
+        } else if (status === "drying") {
+          buttonHtml = `<button class="btn btn-primary" onclick="handleStartCooling()">เริ่มอบออก</button>`;
+        } else if (status === "cooling") {
+          buttonHtml = `<button class="btn btn-success" onclick="handleMarkCompleted()">อบเสร็จแล้ว</button>`;
+        }
+        container.innerHTML = buttonHtml;
+      }
+
+      function renderRecordsList(records) {
+        console.log("UI: Rendering records list");
+        const list = document.getElementById("records-list");
+        list.innerHTML = "";
+        if (records.length === 0) {
+          list.innerHTML = "<li>ยังไม่มีข้อมูลบันทึก</li>";
+          return;
+        }
+        records.forEach((record) => {
+          const li = document.createElement("li");
+          li.className = "record-item";
+          li.innerHTML = `
+                <span>${formatThaiDateTime(record.record_time)} | ความชื้น: ${
+            record.humidity
+          }% | อุณฯ บน: ${record.temperature_top}°C | อุณฯ ล่าง: ${
+            record.temperature_bottom
+          }°C</span>
+                <div>
+                    ${
+                      appState.currentUser.role === "staff"
+                        ? `<button class="btn btn-warning btn-sm" onclick="handleEditRecord(${record.id})">แก้ไข</button>`
+                        : ""
+                    }
+                    ${
+                      appState.currentUser.role === "staff"
+                        ? `<button class="btn btn-danger btn-sm" onclick="handleDeleteRecord(${record.id})">ลบ</button>`
+                        : ""
+                    }
+                </div>
+            `;
+          list.appendChild(li);
+        });
+      }
+
+      function renderGraphs(records) {
+        console.log("UI: Rendering graphs");
+        const labels = records.map((r) => formatThaiDateTime(r.record_time));
+        const moistureData = records.map((r) => r.humidity);
+        const tempTopData = records.map((r) => r.temperature_top);
+        const tempBottomData = records.map((r) => r.temperature_bottom);
+
+        // Destroy old charts if they exist
+        if (moistureChart) moistureChart.destroy();
+        if (temperatureChart) temperatureChart.destroy();
+
+        // Moisture Chart
+        const moistureCtx = document
+          .getElementById("moisture-chart")
+          .getContext("2d");
+        moistureChart = new Chart(moistureCtx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "ความชื้น (%)",
+                data: moistureData,
+                borderColor: "rgb(75, 192, 192)",
+                tension: 0.1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 35,
+                ticks: { stepSize: 5 },
+                grid: {
+                  color: (context) =>
+                    context.tick.value === 13.5 ? "red" : "rgba(0,0,0,0.1)",
+                },
+              },
+            },
+          },
+        });
+
+        // Temperature Chart
+        const tempCtx = document
+          .getElementById("temperature-chart")
+          .getContext("2d");
+        temperatureChart = new Chart(tempCtx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "อุณหภูมิพัดลมบน (°C)",
+                data: tempTopData,
+                borderColor: "rgb(255, 99, 132)",
+                tension: 0.1,
+              },
+              {
+                label: "อุณหภูมิพัดลมล่าง (°C)",
+                data: tempBottomData,
+                borderColor: "rgb(54, 162, 235)",
+                tension: 0.1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                min: 35,
+                max: 50,
+                ticks: { stepSize: 5 },
+              },
+            },
+          },
+        });
+      }
+
+      function renderHistory() {
+        console.log("UI: Rendering history page");
+        fetchCompletedBatches(
+          appState.historyPage,
+          appState.historyFilters
+        ).then(({ batches, totalPages }) => {
+          appState.historyTotalPages = totalPages;
+          renderHistoryTable(batches);
+          renderHistoryPagination();
+        });
+      }
+
+      function renderHistoryTable(batches) {
+        console.log("UI: Rendering history table");
+        const tbody = document.getElementById("history-table-body");
+        tbody.innerHTML = "";
+        batches.forEach((batch) => {
+          // <<<< ส่วนที่เพิ่มเข้ามาเพื่อคำนวณเวลา >>>>>
+          const fillingDuration = calculateDuration(
+            batch.start_filling_time,
+            batch.start_drying_time
+          );
+          const dryingDuration = calculateDuration(
+            batch.start_drying_time,
+            batch.completed_time
+          );
+
+          const tr = document.createElement("tr");
+          tr.style.cursor = "pointer";
+          tr.innerHTML = `
+                <td>${batch.batch_number}</td>
+                <td>${batch.dryer_id}</td>
+                <td>${batch.rice_type}</td>
+                <td>${formatThaiDateTime(batch.start_drying_time)}</td>
+                <td>${formatThaiDateTime(batch.completed_time)}</td>
+                <td>${batch.storage_location}</td>
+                <td>${fillingDuration}</td>
+                <td>${dryingDuration}</td>
+            `;
+          tr.onclick = () => showHistoryDetail(batch);
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderHistoryPagination() {
+        console.log(
+          `UI: Rendering pagination for page ${appState.historyPage}/${appState.historyTotalPages}`
+        );
+        const pagination = document.getElementById("history-pagination");
+        pagination.innerHTML = "";
+
+        if (appState.historyPage > 1) {
+          const prevLi = document.createElement("li");
+          prevLi.innerHTML = `<button class="btn btn-secondary" onclick="goToHistoryPage(${
+            appState.historyPage - 1
+          })">ก่อนหน้า</button>`;
+          pagination.appendChild(prevLi);
+        }
+
+        const pageSpan = document.createElement("span");
+        pageSpan.style.margin = "0 15px";
+        pageSpan.innerText = `หน้า ${appState.historyPage} จาก ${appState.historyTotalPages}`;
+        pagination.appendChild(pageSpan);
+
+        if (appState.historyPage < appState.historyTotalPages) {
+          const nextLi = document.createElement("li");
+          nextLi.innerHTML = `<button class="btn btn-secondary" onclick="goToHistoryPage(${
+            appState.historyPage + 1
+          })">ถัดไป</button>`;
+          pagination.appendChild(nextLi);
+        }
+      }
+
+      function showHistoryDetail(batch) {
+        console.log("UI: Showing detail for batch:", batch);
+        fetchRecordsForBatch(batch.id).then((records) => {
+          const detailHtml = `
+                <p><strong>เลขที่ใบอบ:</strong> ${batch.batch_number}</p>
+                <p><strong>เครื่องที่:</strong> ${batch.dryer_id}</p>
+                <p><strong>ชนิดข้าว:</strong> ${batch.rice_type}</p>
+                <p><strong>เริ่มเติมข้าว:</strong> ${formatThaiDateTime(
+                  batch.start_filling_time
+                )}</p>
+                <p><strong>เริ่มอบข้าว:</strong> ${formatThaiDateTime(
+                  batch.start_drying_time
+                )}</p>
+                <p><strong>เริ่มอบออก:</strong> ${formatThaiDateTime(
+                  batch.start_cooling_time
+                )}</p>
+                <p><strong>อบเสร็จ:</strong> ${formatThaiDateTime(
+                  batch.completed_time
+                )}</p>
+                <p><strong>สถานที่เก็บ:</strong> ${batch.storage_location}</p>
+                <hr>
+                <h4>กราฟ</h4>
+                <div style="position: relative; height:300px; width:100%"><canvas id="detail-moisture-chart"></canvas></div>
+                <div style="position: relative; height:300px; width:100%; margin-top:20px;"><canvas id="detail-temp-chart"></canvas></div>
+            `;
+          showPopup(`รายละเอียดการอบ: ${batch.batch_number}`, detailHtml);
+
+          // Render charts in popup
+          setTimeout(() => {
+            const labels = records.map((r) =>
+              formatThaiDateTime(r.record_time)
+            );
+            const moistureData = records.map((r) => r.humidity);
+            const tempTopData = records.map((r) => r.temperature_top);
+            const tempBottomData = records.map((r) => r.temperature_bottom);
+
+            new Chart(
+              document.getElementById("detail-moisture-chart").getContext("2d"),
+              {
+                type: "line",
+                data: {
+                  labels,
+                  datasets: [
+                    {
+                      label: "ความชื้น (%)",
+                      data: moistureData,
+                      borderColor: "rgb(75, 192, 192)",
+                      tension: 0.1,
+                    },
+                  ],
+                },
+                options: {
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      max: 35,
+                      ticks: { stepSize: 5 },
+                      grid: {
+                        color: (context) =>
+                          context.tick.value === 13.5
+                            ? "red"
+                            : "rgba(0,0,0,0.1)",
+                      },
+                    },
+                  },
+                },
+              }
+            );
+            new Chart(
+              document.getElementById("detail-temp-chart").getContext("2d"),
+              {
+                type: "line",
+                data: {
+                  labels,
+                  datasets: [
+                    {
+                      label: "อุณฯ บน (°C)",
+                      data: tempTopData,
+                      borderColor: "rgb(255, 99, 132)",
+                      tension: 0.1,
+                    },
+                    {
+                      label: "อุณฯ ล่าง (°C)",
+                      data: tempBottomData,
+                      borderColor: "rgb(54, 162, 235)",
+                      tension: 0.1,
+                    },
+                  ],
+                },
+                options: {
+                  scales: { y: { min: 35, max: 50, ticks: { stepSize: 5 } } },
+                },
+              }
+            );
+          }, 100);
+        });
+      }
+
+      // ========================================
+      // ACTION HANDLERS (POPUPS)
+      // ========================================
+      function handleStartFilling() {
+        console.log("ACTION: Start Filling");
+        const content = `
+            <div class="form-group"><label>เลขที่หัวอบ</label><input class="form-control" value="${
+              appState.currentDryerId
+            }" disabled></div>
+            <div class="form-group"><label>วันเวลา</label><input class="form-control" value="${formatThaiDateTime(
+              new Date()
+            )}" disabled></div>
+            <div class="form-group"><label>เลขที่ใบอบ</label><input id="popup-batch-number" class="form-control" required></div>
+            <div class="form-group"><label>ชนิดข้าว</label>
+                <<<< ส่วนที่เปลี่ยนเป็น Dropdown List >>>>
+                <select id="popup-rice-type" class="form-control" required>
+                    <option value="">กรุณาเลือกชนิดข้าว...</option>
+                    <option value="กข15">กข15</option>
+                    <option value="มะลิ105">มะลิ105</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+            </div>
+            <div class="form-group"><label>รหัสยืนยัน</label><input id="popup-confirm-pin" type="password" class="form-control" required></div>
+            <div class="popup-actions">
+                <button class="btn btn-primary" onclick="confirmStartFilling()">บันทึก</button>
+                <button class="btn btn-secondary" onclick="closePopup()">ยกเลิก</button>
+            </div>
+        `;
+        showPopup("เริ่มเติมข้าว", content);
+      }
+
+      async function confirmStartFilling() {
+        const batchNumber = document.getElementById("popup-batch-number").value;
+        const riceType = document.getElementById("popup-rice-type").value;
+        const pin = document.getElementById("popup-confirm-pin").value;
+
+        // <<<< ส่วนที่เพิ่มเข้ามาเพื่อตรวจสอบ >>>>>
+        // ตรวจสอบว่ากรอกเลขที่ใบอบหรือไม่
+        if (!batchNumber || batchNumber.trim() === "") {
+          showError("กรุณาระบุเลขที่ใบอบ");
+          return;
+        }
+        // ตรวจสอบว่าเลือกชนิดข้าวหรือไม่
+        if (!riceType) {
+          showError("กรุณาเลือกชนิดข้าว");
+          return;
+        }
+
+        if (pin !== ACTION_CONFIRM_PIN) {
+          showError("รหัสยืนยันไม่ถูกต้อง");
+          return;
+        }
+        try {
+          await createNewBatch(appState.currentDryerId, batchNumber, riceType);
+          closePopup();
+          renderControlPanel();
+        } catch (error) {
+          showError(`ไม่สามารถเริ่มเติมข้าวได้: ${error.message}`);
+        }
+      }
+
+      function handleStartDrying() {
+        console.log("ACTION: Start Drying");
+        const content = `
+            <div class="form-group"><label>เลขที่หัวอบ</label><input class="form-control" value="${
+              appState.currentDryerId
+            }" disabled></div>
+            <div class="form-group"><label>วันเวลา</label><input class="form-control" value="${formatThaiDateTime(
+              new Date()
+            )}" disabled></div>
+            <div class="form-group"><label>รหัสยืนยัน</label><input id="popup-confirm-pin" type="password" class="form-control" required></div>
+            <div class="popup-actions">
+                <button class="btn btn-primary" onclick="confirmStartDrying()">บันทึก</button>
+                <button class="btn btn-secondary" onclick="closePopup()">ยกเลิก</button>
+            </div>
+        `;
+        showPopup("เริ่มอบข้าว", content);
+      }
+
+      async function confirmStartDrying() {
+        const pin = document.getElementById("popup-confirm-pin").value;
+        if (pin !== ACTION_CONFIRM_PIN) {
+          showError("รหัสยืนยันไม่ถูกต้อง");
+          return;
+        }
+        try {
+          await updateBatchStatus(appState.currentBatch.id, {
+            status: "drying",
+            start_drying_time: new Date().toISOString(),
+          });
+          closePopup();
+          renderControlPanel();
+        } catch (error) {
+          showError(`ไม่สามารถเริ่มอบข้าวได้: ${error.message}`);
+        }
+      }
+
+      function handleStartCooling() {
+        console.log("ACTION: Start Cooling");
+        const content = `
+            <div class="form-group"><label>เลขที่หัวอบ</label><input class="form-control" value="${
+              appState.currentDryerId
+            }" disabled></div>
+            <div class="form-group"><label>วันเวลา</label><input class="form-control" value="${formatThaiDateTime(
+              new Date()
+            )}" disabled></div>
+            <div class="form-group"><label>สถานที่เก็บข้าวเปลือกที่อบเสร็จแล้ว</label>
+                <<<< ส่วนที่เปลี่ยนเป็น Dropdown List >>>>
+                <select id="popup-storage-location" class="form-control" required>
+                    <option value="">กรุณาเลือกสถานที่...</option>
+                    <option value="ห้อง1">ห้อง1</option>
+                    <option value="ห้อง2">ห้อง2</option>
+                    <option value="ห้อง3">ห้อง3</option>
+                    <option value="หน้าหลุม">หน้าหลุม</option>
+                </select>
+            </div>
+            <div class="form-group"><label>รหัสยืนยัน</label><input id="popup-confirm-pin" type="password" class="form-control" required></div>
+            <div class="popup-actions">
+                <button class="btn btn-primary" onclick="confirmStartCooling()">บันทึก</button>
+                <button class="btn btn-secondary" onclick="closePopup()">ยกเลิก</button>
+            </div>
+        `;
+        showPopup("เริ่มอบออก", content);
+      }
+
+      async function confirmStartCooling() {
+        const storageLocation = document.getElementById(
+          "popup-storage-location"
+        ).value;
+        const pin = document.getElementById("popup-confirm-pin").value;
+
+        // <<<< ส่วนที่ตรวจสอบ (มีอยู่แล้ว แต่ปรับข้อความให้ชัดเจนขึ้น) >>>>>
+        // ตรวจสอบว่าผู้ใช้เลือกสถานที่เก็บหรือไม่ (ไม่ใช่ค่าว่าง)
+        if (!storageLocation) {
+          showError("กรุณาเลือกสถานที่เก็บจากรายการ"); // ปรับข้อความเตือน
+          return; // หยุดการทำงานถ้ายังไม่เลือก
+        }
+
+        if (pin !== ACTION_CONFIRM_PIN) {
+          showError("รหัสยืนยันไม่ถูกต้อง");
+          return;
+        }
+
+        try {
+          await updateBatchStatus(appState.currentBatch.id, {
+            status: "cooling",
+            start_cooling_time: new Date().toISOString(),
+            storage_location: storageLocation,
+          });
+          closePopup();
+          renderControlPanel();
+        } catch (error) {
+          showError(`ไม่สามารถเริ่มอบออกได้: ${error.message}`);
+        }
+      }
+
+      function handleMarkCompleted() {
+        console.log("ACTION: Mark Completed");
+        const content = `
+            <div class="form-group"><label>เลขที่หัวอบ</label><input class="form-control" value="${
+              appState.currentDryerId
+            }" disabled></div>
+            <div class="form-group"><label>วันเวลา</label><input class="form-control" value="${formatThaiDateTime(
+              new Date()
+            )}" disabled></div>
+            <div class="form-group"><label>รหัสยืนยัน</label><input id="popup-confirm-pin" type="password" class="form-control" required></div>
+            <div class="popup-actions">
+                <button class="btn btn-primary" onclick="confirmMarkCompleted()">บันทึก</button>
+                <button class="btn btn-secondary" onclick="closePopup()">ยกเลิก</button>
+            </div>
+        `;
+        showPopup("อบเสร็จแล้ว", content);
+      }
+
+      async function confirmMarkCompleted() {
+        const pin = document.getElementById("popup-confirm-pin").value;
+        if (pin !== ACTION_CONFIRM_PIN) {
+          showError("รหัสยืนยันไม่ถูกต้อง");
+          return;
+        }
+        try {
+          await updateBatchStatus(appState.currentBatch.id, {
+            status: "completed",
+            completed_time: new Date().toISOString(),
+          });
+          closePopup();
+          renderControlPanel();
+        } catch (error) {
+          showError(`ไม่สามารถบันทึกสถานะอบเสร็จได้: ${error.message}`);
+        }
+      }
+
+      function handleAddRecord() {
+        console.log("ACTION: Add Record");
+        const content = `
+            <div class="form-group"><label>วันเวลา</label><input class="form-control" value="${formatThaiDateTime(
+              new Date()
+            )}" disabled></div>
+            <div class="form-group"><label>ความชื้น (%)</label><input id="popup-humidity" type="number" step="0.01" class="form-control" required></div>
+            <div class="form-group"><label>อุณหภูมิพัดลมบน (°C)</label><input id="popup-temp-top" type="number" step="0.01" class="form-control" required></div>
+            <div class="form-group"><label>อุณหภูมิพัดลมล่าง (°C)</label><input id="popup-temp-bottom" type="number" step="0.01" class="form-control" required></div>
+            <div class="popup-actions">
+                <button class="btn btn-success" onclick="confirmAddRecord()">บันทึก</button>
+                <button class="btn btn-secondary" onclick="closePopup()">ยกเลิก</button>
+            </div>
+        `;
+        showPopup("เพิ่มข้อมูล", content, "popup-add");
+      }
+
+      async function confirmAddRecord() {
+        // ดึงค่าจาก input fields ในรูปแบบ string
+        const humidityStr = document.getElementById("popup-humidity").value;
+        const tempTopStr = document.getElementById("popup-temp-top").value;
+        const tempBottomStr =
+          document.getElementById("popup-temp-bottom").value;
+
+        // แปลงค่า string เป็นตัวเลข
+        const humidity = parseFloat(humidityStr);
+        const tempTop = parseFloat(tempTopStr);
+        const tempBottom = parseFloat(tempBottomStr);
+
+        // <<<< ส่วนที่เพิ่มเข้ามาเพื่อตรวจสอบ >>>>>
+        // ตรวจสอบความชื้น
+        if (humidityStr.trim() === "" || isNaN(humidity)) {
+          showError("กรุณาระบุความชื้นเป็นตัวเลข");
+          return;
+        }
+        if (humidity < 1 || humidity > 35) {
+          showError("ความชื้นต้องมีค่าระหว่าง 1 ถึง 35");
+          return;
+        }
+
+        // ตรวจสอบอุณหภูมิพัดลมบน
+        if (tempTopStr.trim() === "" || isNaN(tempTop)) {
+          showError("กรุณาระบุอุณหภูมิพัดลมบนเป็นตัวเลข");
+          return;
+        }
+        if (tempTop < 0 || tempTop > 50) {
+          showError("อุณหภูมิพัดลมบนต้องมีค่าระหว่าง 0 ถึง 50");
+          return;
+        }
+
+        // ตรวจสอบอุณหภูมิพัดลมล่าง
+        if (tempBottomStr.trim() === "" || isNaN(tempBottom)) {
+          showError("กรุณาระบุอุณหภูมิพัดลมล่างเป็นตัวเลข");
+          return;
+        }
+        if (tempBottom < 0 || tempBottom > 50) {
+          showError("อุณหภูมิพัดลมล่างต้องมีค่าระหว่าง 0 ถึง 50");
+          return;
+        }
+
+        // ถ้าผ่านการตรวจสอบทั้งหมด จึงจะทำงานในส่วนของการบันทึกข้อมูล
+        try {
+          await addRecordForBatch(appState.currentBatch.id, {
+            record_time: new Date().toISOString(),
+            humidity,
+            temperature_top: tempTop,
+            temperature_bottom: tempBottom,
+          });
+          closePopup();
+          renderControlPanel();
+        } catch (error) {
+          showError(`ไม่สามารถเพิ่มข้อมูลได้: ${error.message}`);
+        }
+      }
+
+      function handleEditRecord(recordId) {
+        console.log(`ACTION: Edit Record ${recordId}`);
+        const record = appState.currentRecords.find((r) => r.id === recordId);
+        const content = `
+            <div class="form-group"><label>วันเวลา</label><input class="form-control" value="${formatThaiDateTime(
+              record.record_time
+            )}" disabled></div>
+            <div class="form-group"><label>ความชื้น (%)</label><input id="popup-humidity" type="number" step="0.01" class="form-control" value="${
+              record.humidity
+            }" required></div>
+            <div class="form-group"><label>อุณหภูมิพัดลมบน (°C)</label><input id="popup-temp-top" type="number" step="0.01" class="form-control" value="${
+              record.temperature_top
+            }" required></div>
+            <div class="form-group"><label>อุณหภูมิพัดลมล่าง (°C)</label><input id="popup-temp-bottom" type="number" step="0.01" class="form-control" value="${
+              record.temperature_bottom
+            }" required></div>
+            <div class="form-group"><label>รหัสยืนยัน</label><input id="popup-confirm-pin" type="password" class="form-control" required></div>
+            <div class="popup-actions">
+                <button class="btn btn-warning" onclick="confirmEditRecord(${recordId})">บันทึก</button>
+                <button class="btn btn-secondary" onclick="closePopup()">ยกเลิก</button>
+            </div>
+        `;
+        showPopup("แก้ไขข้อมูล", content, "popup-edit");
+      }
+
+      async function confirmEditRecord(recordId) {
+        const humidity = parseFloat(
+          document.getElementById("popup-humidity").value
+        );
+        const tempTop = parseFloat(
+          document.getElementById("popup-temp-top").value
+        );
+        const tempBottom = parseFloat(
+          document.getElementById("popup-temp-bottom").value
+        );
+        const pin = document.getElementById("popup-confirm-pin").value;
+        if (pin !== ACTION_CONFIRM_PIN) {
+          showError("รหัสยืนยันไม่ถูกต้อง");
+          return;
+        }
+        try {
+          await updateRecord(recordId, {
+            humidity,
+            temperature_top: tempTop,
+            temperature_bottom: tempBottom,
+          });
+          closePopup();
+          renderControlPanel();
+        } catch (error) {
+          showError(`ไม่สามารถแก้ไขข้อมูลได้: ${error.message}`);
+        }
+      }
+
+      function handleDeleteRecord(recordId) {
+        console.log(`ACTION: Delete Record ${recordId}`);
+        const record = appState.currentRecords.find((r) => r.id === recordId);
+        const content = `
+            <p>คุณต้องการลบข้อมูลนี้ใช่หรือไม่?</p>
+            <div class="form-group"><label>วันเวลา</label><input class="form-control" value="${formatThaiDateTime(
+              record.record_time
+            )}" disabled></div>
+            <div class="form-group"><label>ความชื้น (%)</label><input class="form-control" value="${
+              record.humidity
+            }" disabled></div>
+            <div class="form-group"><label>อุณหภูมิพัดลมบน (°C)</label><input class="form-control" value="${
+              record.temperature_top
+            }" disabled></div>
+            <div class="form-group"><label>อุณหภูมิพัดลมล่าง (°C)</label><input class="form-control" value="${
+              record.temperature_bottom
+            }" disabled></div>
+            <div class="form-group"><label>รหัสยืนยัน</label><input id="popup-confirm-pin" type="password" class="form-control" required></div>
+            <div class="popup-actions">
+                <button class="btn btn-danger" onclick="confirmDeleteRecord(${recordId})">ลบข้อมูล</button>
+                <button class="btn btn-secondary" onclick="closePopup()">ยกเลิก</button>
+            </div>
+        `;
+        showPopup("ลบข้อมูล", content, "popup-delete");
+      }
+
+      async function confirmDeleteRecord(recordId) {
+        const pin = document.getElementById("popup-confirm-pin").value;
+        if (pin !== ACTION_CONFIRM_PIN) {
+          showError("รหัสยืนยันไม่ถูกต้อง");
+          return;
+        }
+        try {
+          await deleteRecord(recordId);
+          closePopup();
+          renderControlPanel();
+        } catch (error) {
+          showError(`ไม่สามารถลบข้อมูลได้: ${error.message}`);
+        }
+      }
+
+      function goToHistoryPage(page) {
+        appState.historyPage = page;
+        renderHistory();
+      }
+
+      // ========================================
+      // EVENT LISTENERS
+      // ========================================
+      document.addEventListener("DOMContentLoaded", () => {
+        console.log("SYSTEM: DOM Content Loaded. Initializing app...");
+        registerServiceWorker();
+        registerWebAppManifest();
+
+        // Page 0
+        document
+          .getElementById("login-form")
+          .addEventListener("submit", handleLogin);
+
+        // Page 1
+        document
+          .getElementById("btn-logout")
+          .addEventListener("click", handleLogout);
+        document
+          .getElementById("btn-view-history")
+          .addEventListener("click", () => {
+            showPage(3);
+            renderHistory();
+          });
+        document
+          .getElementById("btn-refresh-dashboard")
+          .addEventListener("click", renderDashboard);
+
+        // Page 2
+        document
+          .getElementById("btn-back-to-dashboard")
+          .addEventListener("click", () => showPage(1));
+        document
+          .getElementById("btn-add-record")
+          .addEventListener("click", handleAddRecord);
+
+        // Page 3
+        document
+          .getElementById("btn-back-to-dashboard-from-history")
+          .addEventListener("click", () => showPage(1));
+        document
+          .getElementById("btn-apply-filters")
+          .addEventListener("click", () => {
+            appState.historyFilters = {
+              dryer: document.getElementById("filter-dryer").value,
+              riceType: document.getElementById("filter-rice-type").value,
+              storage: document.getElementById("filter-storage").value,
+            };
+            appState.historyPage = 1;
+            renderHistory();
+          });
+
+        // Popup backdrop click to close
+        document
+          .getElementById("popup-backdrop")
+          .addEventListener("click", (e) => {
+            if (e.target.id === "popup-backdrop") {
+              closePopup();
+            }
+          });
+
+        console.log("SYSTEM: App initialization complete.");
+      });
+    </script>
+  </body>
+</html>
