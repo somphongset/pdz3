@@ -632,6 +632,33 @@
         console.error("UI Error Displayed:", message);
       }
 
+      function calculateDurationHHMM(startTime) {
+        if (!startTime) {
+          return "-";
+        }
+        const now = new Date();
+        const start = new Date(startTime);
+
+        if (isNaN(start.getTime())) {
+          return "-";
+        }
+
+        const diffMs = now - start;
+        if (diffMs < 0) {
+          return "-";
+        }
+
+        const totalMinutes = Math.floor(diffMs / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        // เติมเลข 0 ข้างหน้า ถ้าเป็นเลขตัวเดียว เช่น 5 จะกลายเป็น 05
+        const formattedHours = String(hours).padStart(2, "0");
+        const formattedMinutes = String(minutes).padStart(2, "0");
+
+        return `${formattedHours}:${formattedMinutes}`;
+      }
+
       // ========================================
       // AUTHENTICATION
       // ========================================
@@ -941,29 +968,31 @@
               ? batch.batch_number
               : "-";
 
-            // <<<< ส่วนที่เพิ่มเข้ามาเพื่อสร้างข้อมูลสรุป >>>>>
             const summaryContainer = document.getElementById("status-summary");
             let summaryHtml = "";
 
             if (batch) {
               if (batch.start_filling_time) {
+                // <<<< แก้ไขบรรทัดนี้ >>>>>
                 summaryHtml += `<p><strong>เริ่มเติมข้าว:</strong> ${formatThaiDateTime(
                   batch.start_filling_time
-                )} (ทำมาแล้ว ${calculateElapsedTime(
+                )} (ทำมาแล้ว ${calculateDurationHHMM(
                   batch.start_filling_time
                 )})</p>`;
               }
               if (batch.start_drying_time) {
+                // <<<< แก้ไขบรรทัดนี้ >>>>>
                 summaryHtml += `<p><strong>เริ่มอบข้าว:</strong> ${formatThaiDateTime(
                   batch.start_drying_time
-                )} (ทำมาแล้ว ${calculateElapsedTime(
+                )} (ทำมาแล้ว ${calculateDurationHHMM(
                   batch.start_drying_time
                 )})</p>`;
               }
               if (batch.start_cooling_time) {
+                // <<<< แก้ไขบรรทัดนี้ >>>>>
                 summaryHtml += `<p><strong>เริ่มอบออก:</strong> ${formatThaiDateTime(
                   batch.start_cooling_time
-                )} (ทำมาแล้ว ${calculateElapsedTime(
+                )} (ทำมาแล้ว ${calculateDurationHHMM(
                   batch.start_cooling_time
                 )})</p>`;
               }
