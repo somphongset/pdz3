@@ -865,10 +865,26 @@
           statuses.forEach((batch, index) => {
             const dryerId = index + 1;
             const status = batch ? batch.status : "idle";
-            const elapsedTime =
-              batch && batch.start_filling_time
-                ? calculateElapsedTime(batch.start_filling_time)
-                : "";
+
+            // <<<< ส่วนที่เพิ่มเข้ามาเพื่อเลือกเวลาเริ่มต้นที่ถูกต้องตามสถานะ >>>>>
+            let startTimeForCalculation = null;
+            if (batch) {
+              switch (status) {
+                case "filling":
+                  startTimeForCalculation = batch.start_filling_time;
+                  break;
+                case "drying":
+                  startTimeForCalculation = batch.start_drying_time;
+                  break;
+                case "cooling":
+                  startTimeForCalculation = batch.start_cooling_time;
+                  break;
+              }
+            }
+            const elapsedTime = startTimeForCalculation
+              ? calculateElapsedTime(startTimeForCalculation)
+              : "";
+
             const statusText = {
               idle: "ว่าง",
               filling: `เติมข้าวอยู่ (${elapsedTime})`,
@@ -896,45 +912,57 @@
         renderControlPanel();
       }
 
-    function renderControlPanel() {
-        console.log(`UI: Rendering control panel for dryer ${appState.currentDryerId}`);
-        document.getElementById('control-dryer-id').innerText = appState.currentDryerId;
-        
-        fetchDryerStatus(appState.currentDryerId).then(batch => {
+      function renderControlPanel() {
+        console.log(
+          `UI: Rendering control panel for dryer ${appState.currentDryerId}`
+        );
+        document.getElementById("control-dryer-id").innerText =
+          appState.currentDryerId;
+
+        fetchDryerStatus(appState.currentDryerId)
+          .then((batch) => {
             appState.currentBatch = batch;
-            document.getElementById('control-batch-number').innerText = batch ? batch.batch_number : '-';
+            document.getElementById("control-batch-number").innerText = batch
+              ? batch.batch_number
+              : "-";
             renderActionButtons(batch);
 
             if (batch) {
-                return fetchRecordsForBatch(batch.id);
+              return fetchRecordsForBatch(batch.id);
             } else {
-                console.log("UI: Dryer is idle, no records to fetch.");
-                appState.currentRecords = [];
-                renderRecordsList([]);
-                renderGraphs([]);
-                return Promise.resolve([]);
+              console.log("UI: Dryer is idle, no records to fetch.");
+              appState.currentRecords = [];
+              renderRecordsList([]);
+              renderGraphs([]);
+              return Promise.resolve([]);
             }
-        }).then(records => {
+          })
+          .then((records) => {
             if (records) {
-                appState.currentRecords = records;
-                renderRecordsList(records);
-                renderGraphs(records);
+              appState.currentRecords = records;
+              renderRecordsList(records);
+              renderGraphs(records);
             }
 
             // <<<< ส่วนที่แก้ไขเพื่อควบคุมการแสดงปุ่ม >>>>>
-            const addRecordButton = document.getElementById('btn-add-record');
-            
+            const addRecordButton = document.getElementById("btn-add-record");
+
             // กำหนดสถานะเครื่อง ถ้าไม่มี batch ให้ถือว่าเป็น 'idle'
-            const currentStatus = appState.currentBatch ? appState.currentBatch.status : 'idle';
+            const currentStatus = appState.currentBatch
+              ? appState.currentBatch.status
+              : "idle";
 
             // แสดงปุ่มเฉพาะเมื่อผู้ใช้เป็น staff และสถานะเครื่องเป็น 'drying' หรือ 'cooling'
-            if (appState.currentUser.role === 'staff' && (currentStatus === 'drying' || currentStatus === 'cooling')) {
-                addRecordButton.style.display = 'block';
+            if (
+              appState.currentUser.role === "staff" &&
+              (currentStatus === "drying" || currentStatus === "cooling")
+            ) {
+              addRecordButton.style.display = "block";
             } else {
-                addRecordButton.style.display = 'none';
+              addRecordButton.style.display = "none";
             }
-        });
-    }
+          });
+      }
 
       function renderActionButtons(batch) {
         console.log(
@@ -1008,9 +1036,50 @@
         const tempTopData = records.map((r) => r.temperature_top);
         const tempBottomData = records.map((r) => r.temperature_bottom);
 
-        // Destroy old charts if they exist
         if (moistureChart) moistureChart.destroy();
         if (temperatureChart) temperatureChart.destroy();
+
+        // <<<< ส่วนที่เพิ่มเข้ามาเพื่อกำหนดช่วงเวลาของแกน X >>>>>
+        let minTime = null;
+        let maxTime = null;
+
+        // จะกำหนดช่วงเวลาก็ต่อเมื่อมีข้อมูลการบันทึก
+        if (records.length > 0) {
+          // กำหนดเวลาเริ่มต้นจาก 'วันเวลาที่เริ่มอบ' ถ้ามี หรือจากข้อมูลแรกสุดถ้าไม่มี
+          if (
+            appState.currentBatch &&
+            appState.currentBatch.start_drying_time
+          ) {
+            minTime = new Date(appState.currentBatch.start_drying_time);
+          } else {
+            minTime = new Date(records[0].record_time);
+          }
+
+          // กำหนดเวลาสิ้นสุดจากข้อมูลล่าสุด บวกไปอีก 2 ชั่วโมง
+          const lastRecordTime = new Date(
+            records[records.length - 1].record_time
+          );
+          maxTime = new Date(lastRecordTime.getTime() + 2 * 60 * 60 * 1000); // เพิ่ม 2 ชั่วโมง (เป็นมิลลิวินาที)
+        }
+
+        // ตัวเลือกสำหรับแกนเวลาที่จะใช้ร่วมกันทั้งสองกราฟ
+        const commonTimeScaleOptions = {
+          type: "time", // กำหนดให้แกน X เป็นประเภทเวลา
+          time: {
+            unit: "hour", // หน่วยของเวลาคือชั่วโมง
+            displayFormats: {
+              hour: "HH:mm", // รูปแบบการแสดงผลเวลา เช่น 14:30
+            },
+          },
+          min: minTime, // จุดเริ่มต้นของแกน X
+          max: maxTime, // จุดสิ้นสุดของแกน X
+          grid: {
+            color: "rgba(0, 0, 0, 0.1)", // สีของเส้นกริด
+          },
+          ticks: {
+            stepSize: 2, // <<<< กำหนดให้มีเส้นกริดทุก 2 ชั่วโมง >>>>>
+          },
+        };
 
         // Moisture Chart
         const moistureCtx = document
@@ -1033,6 +1102,7 @@
             responsive: true,
             maintainAspectRatio: false,
             scales: {
+              x: commonTimeScaleOptions, // <<<< ใช้ตัวเลือกแกนเวลาที่สร้างไว้ >>>>>
               y: {
                 beginAtZero: true,
                 max: 35,
@@ -1073,6 +1143,7 @@
             responsive: true,
             maintainAspectRatio: false,
             scales: {
+              x: commonTimeScaleOptions, // <<<< ใช้ตัวเลือกแกนเวลาที่สร้างไว้ >>>>>
               y: {
                 min: 35,
                 max: 50,
