@@ -344,6 +344,20 @@
             <span id="control-batch-number">-</span>
           </p>
           <hr />
+          <div
+            id="status-summary"
+            style="
+              background-color: #f8f9fa;
+              padding: 15px;
+              border-radius: 5px;
+              margin-top: 15px;
+              border-left: 5px solid var(--primary-color);
+            "
+          >
+            <!-- ข้อมูลสรุปจะถูกสร้างโดย JavaScript -->
+          </div>
+
+          <hr />
           <div id="action-buttons-container">
             <!-- Action buttons will be generated here by JS -->
           </div>
@@ -926,6 +940,43 @@
             document.getElementById("control-batch-number").innerText = batch
               ? batch.batch_number
               : "-";
+
+            // <<<< ส่วนที่เพิ่มเข้ามาเพื่อสร้างข้อมูลสรุป >>>>>
+            const summaryContainer = document.getElementById("status-summary");
+            let summaryHtml = "";
+
+            if (batch) {
+              if (batch.start_filling_time) {
+                summaryHtml += `<p><strong>เริ่มเติมข้าว:</strong> ${formatThaiDateTime(
+                  batch.start_filling_time
+                )} (ทำมาแล้ว ${calculateElapsedTime(
+                  batch.start_filling_time
+                )})</p>`;
+              }
+              if (batch.start_drying_time) {
+                summaryHtml += `<p><strong>เริ่มอบข้าว:</strong> ${formatThaiDateTime(
+                  batch.start_drying_time
+                )} (ทำมาแล้ว ${calculateElapsedTime(
+                  batch.start_drying_time
+                )})</p>`;
+              }
+              if (batch.start_cooling_time) {
+                summaryHtml += `<p><strong>เริ่มอบออก:</strong> ${formatThaiDateTime(
+                  batch.start_cooling_time
+                )} (ทำมาแล้ว ${calculateElapsedTime(
+                  batch.start_cooling_time
+                )})</p>`;
+              }
+              if (batch.completed_time) {
+                summaryHtml += `<p><strong>อบเสร็จ:</strong> ${formatThaiDateTime(
+                  batch.completed_time
+                )}</p>`;
+              }
+            } else {
+              summaryHtml = "<p>เครื่องนี้ยังไม่มีข้อมูลการอบ</p>";
+            }
+            summaryContainer.innerHTML = summaryHtml;
+
             renderActionButtons(batch);
 
             if (batch) {
@@ -945,15 +996,11 @@
               renderGraphs(records);
             }
 
-            // <<<< ส่วนที่แก้ไขเพื่อควบคุมการแสดงปุ่ม >>>>>
             const addRecordButton = document.getElementById("btn-add-record");
-
-            // กำหนดสถานะเครื่อง ถ้าไม่มี batch ให้ถือว่าเป็น 'idle'
             const currentStatus = appState.currentBatch
               ? appState.currentBatch.status
               : "idle";
 
-            // แสดงปุ่มเฉพาะเมื่อผู้ใช้เป็น staff และสถานะเครื่องเป็น 'drying' หรือ 'cooling'
             if (
               appState.currentUser.role === "staff" &&
               (currentStatus === "drying" || currentStatus === "cooling")
