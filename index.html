@@ -10,6 +10,7 @@
     />
     <script src="https://unpkg.com/@supabase/supabase-js@2.78.0/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
       :root {
         --primary-color: #007bff;
@@ -1031,7 +1032,24 @@
 
       function renderGraphs(records) {
         console.log("UI: Rendering graphs");
-        const labels = records.map((r) => formatThaiDateTime(r.record_time));
+
+        // ถ้าไม่มีข้อมูล records ให้ลบกราฟเก่าและหยุดการทำงาน
+        if (!records || records.length === 0) {
+          console.log("UI: No records to display in graphs.");
+          if (moistureChart) {
+            moistureChart.destroy();
+            moistureChart = null;
+          }
+          if (temperatureChart) {
+            temperatureChart.destroy();
+            temperatureChart = null;
+          }
+          return;
+        }
+
+        // <<<< ส่วนที่แก้ไข >>>>>
+        // เปลี่ยนจากการสร้าง labels เป็นข้อความ ให้เป็นออบเจกต์ Date แทน
+        const labels = records.map((r) => new Date(r.record_time));
         const moistureData = records.map((r) => r.humidity);
         const tempTopData = records.map((r) => r.temperature_top);
         const tempBottomData = records.map((r) => r.temperature_bottom);
@@ -1039,45 +1057,35 @@
         if (moistureChart) moistureChart.destroy();
         if (temperatureChart) temperatureChart.destroy();
 
-        // <<<< ส่วนที่เพิ่มเข้ามาเพื่อกำหนดช่วงเวลาของแกน X >>>>>
         let minTime = null;
         let maxTime = null;
 
-        // จะกำหนดช่วงเวลาก็ต่อเมื่อมีข้อมูลการบันทึก
-        if (records.length > 0) {
-          // กำหนดเวลาเริ่มต้นจาก 'วันเวลาที่เริ่มอบ' ถ้ามี หรือจากข้อมูลแรกสุดถ้าไม่มี
-          if (
-            appState.currentBatch &&
-            appState.currentBatch.start_drying_time
-          ) {
-            minTime = new Date(appState.currentBatch.start_drying_time);
-          } else {
-            minTime = new Date(records[0].record_time);
-          }
-
-          // กำหนดเวลาสิ้นสุดจากข้อมูลล่าสุด บวกไปอีก 2 ชั่วโมง
-          const lastRecordTime = new Date(
-            records[records.length - 1].record_time
-          );
-          maxTime = new Date(lastRecordTime.getTime() + 2 * 60 * 60 * 1000); // เพิ่ม 2 ชั่วโมง (เป็นมิลลิวินาที)
+        if (appState.currentBatch && appState.currentBatch.start_drying_time) {
+          minTime = new Date(appState.currentBatch.start_drying_time);
+        } else {
+          minTime = new Date(records[0].record_time);
         }
 
-        // ตัวเลือกสำหรับแกนเวลาที่จะใช้ร่วมกันทั้งสองกราฟ
+        const lastRecordTime = new Date(
+          records[records.length - 1].record_time
+        );
+        maxTime = new Date(lastRecordTime.getTime() + 2 * 60 * 60 * 1000);
+
         const commonTimeScaleOptions = {
-          type: "time", // กำหนดให้แกน X เป็นประเภทเวลา
+          type: "time",
           time: {
-            unit: "hour", // หน่วยของเวลาคือชั่วโมง
+            unit: "hour",
             displayFormats: {
-              hour: "HH:mm", // รูปแบบการแสดงผลเวลา เช่น 14:30
+              hour: "HH:mm", // Chart.js จะใช้รูปแบบนี้ในการแสดงผลบนแกน X
             },
           },
-          min: minTime, // จุดเริ่มต้นของแกน X
-          max: maxTime, // จุดสิ้นสุดของแกน X
+          min: minTime,
+          max: maxTime,
           grid: {
-            color: "rgba(0, 0, 0, 0.1)", // สีของเส้นกริด
+            color: "rgba(0, 0, 0, 0.1)",
           },
           ticks: {
-            stepSize: 2, // <<<< กำหนดให้มีเส้นกริดทุก 2 ชั่วโมง >>>>>
+            stepSize: 2,
           },
         };
 
@@ -1088,7 +1096,7 @@
         moistureChart = new Chart(moistureCtx, {
           type: "line",
           data: {
-            labels: labels,
+            labels: labels, // ส่งออบเจกต์ Date ไป
             datasets: [
               {
                 label: "ความชื้น (%)",
@@ -1102,7 +1110,7 @@
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-              x: commonTimeScaleOptions, // <<<< ใช้ตัวเลือกแกนเวลาที่สร้างไว้ >>>>>
+              x: commonTimeScaleOptions,
               y: {
                 beginAtZero: true,
                 max: 35,
@@ -1123,7 +1131,7 @@
         temperatureChart = new Chart(tempCtx, {
           type: "line",
           data: {
-            labels: labels,
+            labels: labels, // ส่งออบเจกต์ Date ไป
             datasets: [
               {
                 label: "อุณหภูมิพัดลมบน (°C)",
@@ -1143,7 +1151,7 @@
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-              x: commonTimeScaleOptions, // <<<< ใช้ตัวเลือกแกนเวลาที่สร้างไว้ >>>>>
+              x: commonTimeScaleOptions,
               y: {
                 min: 35,
                 max: 50,
