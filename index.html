@@ -1047,7 +1047,6 @@
           return;
         }
 
-        // <<<< ส่วนที่แก้ไข >>>>>
         // เปลี่ยนจากการสร้าง labels เป็นข้อความ ให้เป็นออบเจกต์ Date แทน
         const labels = records.map((r) => new Date(r.record_time));
         const moistureData = records.map((r) => r.humidity);
@@ -1071,12 +1070,13 @@
         );
         maxTime = new Date(lastRecordTime.getTime() + 2 * 60 * 60 * 1000);
 
+        // <<<< ส่วนที่แก้ไข: เพิ่ม title ให้กับแกนเวลา >>>>>
         const commonTimeScaleOptions = {
           type: "time",
           time: {
             unit: "hour",
             displayFormats: {
-              hour: "HH:mm", // Chart.js จะใช้รูปแบบนี้ในการแสดงผลบนแกน X
+              hour: "HH:mm",
             },
           },
           min: minTime,
@@ -1087,6 +1087,15 @@
           ticks: {
             stepSize: 2,
           },
+          title: {
+            display: true,
+            text: `เริ่มต้น: ${formatThaiDateTime(minTime)}`,
+            font: {
+              size: 14,
+              weight: "bold",
+            },
+            color: "#555",
+          },
         };
 
         // Moisture Chart
@@ -1096,7 +1105,7 @@
         moistureChart = new Chart(moistureCtx, {
           type: "line",
           data: {
-            labels: labels, // ส่งออบเจกต์ Date ไป
+            labels: labels,
             datasets: [
               {
                 label: "ความชื้น (%)",
@@ -1131,7 +1140,7 @@
         temperatureChart = new Chart(tempCtx, {
           type: "line",
           data: {
-            labels: labels, // ส่งออบเจกต์ Date ไป
+            labels: labels,
             datasets: [
               {
                 label: "อุณหภูมิพัดลมบน (°C)",
