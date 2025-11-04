@@ -10,6 +10,7 @@
     />
     <script src="https://unpkg.com/@supabase/supabase-js@2.78.0/dist/umd/supabase.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@latest"></script>
     <script src="https://unpkg.com/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
       :root {
@@ -1123,7 +1124,6 @@
           return;
         }
 
-        // เปลี่ยนจากการสร้าง labels เป็นข้อความ ให้เป็นออบเจกต์ Date แทน
         const labels = records.map((r) => new Date(r.record_time));
         const moistureData = records.map((r) => r.humidity);
         const tempTopData = records.map((r) => r.temperature_top);
@@ -1144,9 +1144,9 @@
         const lastRecordTime = new Date(
           records[records.length - 1].record_time
         );
-        maxTime = new Date(lastRecordTime.getTime() + 2 * 60 * 60 * 1000);
+        maxTime = new Date(lastRecordTime.getTime() + 4 * 60 * 60 * 1000);
 
-        // <<<< ส่วนที่แก้ไข: เพิ่ม title ให้กับแกนเวลา >>>>>
+        // ตัวเลือกสำหรับแกนเวลาที่จะใช้ร่วมกันทั้งสองกราฟ
         const commonTimeScaleOptions = {
           type: "time",
           time: {
@@ -1174,6 +1174,15 @@
           },
         };
 
+        // <<<< สร้างตัวเลือกเฉพาะสำหรับแกน Y ของกราฟความชื้น (ตามคำขอใหม่) >>>>>
+        const moistureYAxisOptions = {
+          min: 5, // เริ่มต้นที่ 5
+          max: 35, // สิ้นสุดที่ 35
+          ticks: {
+            stepSize: 5, // ให้เส้นกริดห่างกันทุก 5
+          },
+        };
+
         // Moisture Chart
         const moistureCtx = document
           .getElementById("moisture-chart")
@@ -1196,20 +1205,43 @@
             maintainAspectRatio: false,
             scales: {
               x: commonTimeScaleOptions,
-              y: {
-                beginAtZero: true,
-                max: 35,
-                ticks: { stepSize: 5 },
-                grid: {
-                  color: (context) =>
-                    context.tick.value === 13.5 ? "red" : "rgba(0,0,0,0.1)",
+              y: moistureYAxisOptions, // <<<< ใช้ตัวเลือกแกน Y ที่กำหนด >>>>>
+            },
+            // <<<< เพิ่มส่วนของ Plugin Annotation >>>>>
+            plugins: {
+              legend: {
+                display: true,
+              },
+              tooltip: {
+                mode: "index",
+                intersect: false,
+              },
+              annotation: {
+                annotations: {
+                  line1: {
+                    type: "line",
+                    yMin: 13.5,
+                    yMax: 13.5,
+                    borderColor: "red",
+                    borderWidth: 2,
+                    borderDash: [6, 6], // เส้นประ (Optional, ถ้าต้องการให้เป็นเส้นประ)
+                    label: {
+                      content: "13.5%",
+                      enabled: true,
+                      position: "end",
+                      backgroundColor: "rgba(255, 99, 132, 0.8)",
+                      font: {
+                        style: "bold",
+                      },
+                    },
+                  },
                 },
               },
             },
           },
         });
 
-        // Temperature Chart
+        // Temperature Chart (ใช้ค่าเดิม)
         const tempCtx = document
           .getElementById("temperature-chart")
           .getContext("2d");
